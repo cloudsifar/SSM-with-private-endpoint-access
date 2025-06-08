@@ -1,0 +1,143 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: >
+  Creates a VPC with a private subnet, EC2 instance, SSM IAM role, interface endpoints,
+  and DNS configuration for Session Manager access — no NAT Gateway required.
+
+Parameters:
+  VpcCIDR:
+    Type: String
+    Default: 10.0.0.0/16
+    Description: CIDR block for the VPC
+
+  PrivateSubnetCIDR:
+    Type: String
+    Default: 10.0.1.0/24
+    Description: CIDR block for the private subnet
+
+  AvailabilityZone:
+    Type: AWS::EC2::AvailabilityZone::Name
+    Description: Availability Zone for the subnet
+
+  InstanceType:
+    Type: String
+    Default: t3.micro
+    Description: EC2 instance type
+
+  AMI:
+    Type: AWS::EC2::Image::Id
+    Default: ami-060988b0dff2faa7c
+    Description: AMI ID for EC2 (Amazon Linux 2 with SSM agent)
+
+  KeyName:
+    Type: AWS::EC2::KeyPair::KeyName
+    Default: ""
+    Description: Optional SSH key (leave blank if using SSM only)
+
+Resources:
+  VPC:
+    Type: AWS::EC2::VPC
+    Properties:
+      CidrBlock: !Ref VpcCIDR
+      EnableDnsSupport: true
+      EnableDnsHostnames: true
+      Tags:
+        - Key: Name
+          Value: SSM-VPC
+
+  PrivateSubnet:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref VPC
+      CidrBlock: !Ref PrivateSubnetCIDR
+      AvailabilityZone: !Ref AvailabilityZone
+      MapPublicIpOnLaunch: false
+      Tags:
+        - Key: Name
+          Value: PrivateSubnet-SSM
+
+  SSMRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: ec2.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore
+      Path: /
+      RoleName: SSMRole
+
+  InstanceProfile:
+    Type: AWS::IAM::InstanceProfile
+    Properties:
+      Roles: [!Ref SSMRole]
+      InstanceProfileName: SSMInstanceProfile
+
+  EC2Instance:
+    Type: AWS::EC2::Instance
+    Properties:
+      InstanceType: !Ref InstanceType
+      SubnetId: !Ref PrivateSubnet
+      ImageId: !Ref AMI
+      IamInstanceProfile: !Ref InstanceProfile
+      KeyName: !If [HasKey, !Ref KeyName, !Ref "AWS::NoValue"]
+      Tags:
+        - Key: Name
+          Value: PrivateInstanceSSM
+
+  SecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Allow VPC Endpoint traffic for SSM
+      VpcId: !Ref VPC
+      SecurityGroupIngress:
+        - IpProtocol: -1
+          CidrIp: !Ref VpcCIDR
+      SecurityGroupEgress:
+        - IpProtocol: -1
+          CidrIp: 0.0.0.0/0
+
+  VPCEndpointSSM:
+    Type: AWS::EC2::VPCEndpoint
+    Properties:
+      VpcId: !Ref VPC
+      ServiceName: !Sub "com.amazonaws.${AWS::Region}.ssm"
+      VpcEndpointType: Interface
+      SubnetIds: [!Ref PrivateSubnet]
+      PrivateDnsEnabled: true
+      SecurityGroupIds: [!Ref SecurityGroup]
+
+  VPCEndpointEC2Messages:
+    Type: AWS::EC2::VPCEndpoint
+    Properties:
+      VpcId: !Ref VPC
+      ServiceName: !Sub "com.amazonaws.${AWS::Region}.ec2messages"
+      VpcEndpointType: Interface
+      SubnetIds: [!Ref PrivateSubnet]
+      PrivateDnsEnabled: true
+      SecurityGroupIds: [!Ref SecurityGroup]
+
+  VPCEndpointSSMMessages:
+    Type: AWS::EC2::VPCEndpoint
+    Properties:
+      VpcId: !Ref VPC
+      ServiceName: !Sub "com.amazonaws.${AWS::Region}.ssmmessages"
+      VpcEndpointType: Interface
+      SubnetIds: [!Ref PrivateSubnet]
+      PrivateDnsEnabled: true
+      SecurityGroupIds: [!Ref SecurityGroup]
+
+Conditions:
+  HasKey: !Not [!Equals [!Ref KeyName, ""]]
+
+Outputs:
+  InstanceId:
+    Description: ID of the private EC2 instance
+    Value: !Ref EC2Instance
+
+  InstancePrivateIP:
+    Description: Private IP address of the EC2 instance
+    Value: !GetAtt EC2Instance.PrivateIp

@@ -1,0 +1,26 @@
+[
+  {
+    "ParameterKey": "VpcCIDR",
+    "ParameterValue": "10.0.0.0/16"
+  },
+  {
+    "ParameterKey": "PrivateSubnetCIDR",
+    "ParameterValue": "10.0.1.0/24"
+  },
+  {
+    "ParameterKey": "AvailabilityZone",
+    "ParameterValue": "us-east-1b"
+  },
+  {
+    "ParameterKey": "InstanceType",
+    "ParameterValue": "t2.micro"
+  },
+  {
+    "ParameterKey": "AMI",
+    "ParameterValue": "ami-02457590d33d576c3"
+  },
+  {
+    "ParameterKey": "KeyName",
+    "ParameterValue": "labs2-us-east-NV"
+  }
+]
