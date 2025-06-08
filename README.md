@@ -24,8 +24,10 @@ Many engineers run into trouble with this setup, often due to:
 Cost Comparison: NAT vs VPC Endpoints
 
 NAT Gateway	$0.045(HOUR)	~$32.40(MONTH)	~$388.80(YEAR)
+
 VPC Endpoints (x3)	$0.01 each(HOUR)	~$21.60(MONTH)	~$259.20(YEAR)
-Savings	$0.72/day	~$10.80	~$129.60
+
+Savings	$0.72/day	~$10.80	~$129.60 (OVER COURSE OF 1 YEAR)
 
 That's a meaningful saving for small businesses or personal labs.
 
